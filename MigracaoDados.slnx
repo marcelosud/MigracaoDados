@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MigracaoDados.Application/MigracaoDados.Application.csproj" />
+    <Project Path="src/MigracaoDados.Avalonia/MigracaoDados.Avalonia.csproj" />
+    <Project Path="src/MigracaoDados.Domain/MigracaoDados.Domain.csproj" />
+    <Project Path="src/MigracaoDados.Infrastructure/MigracaoDados.Infrastructure.csproj" />
+    <Project Path="src/MigracaoDados.Wpf/MigracaoDados.Wpf.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MigracaoDados.Application.Tests/MigracaoDados.Application.Tests.csproj" />
+    <Project Path="tests/MigracaoDados.Domain.Tests/MigracaoDados.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -4,14 +4,81 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="MigracaoDados"
-        Height="560"
-        Width="920"
-        MinHeight="480"
-        MinWidth="760">
+        Title="Migração de Dados - Sinqia"
+        Icon="Assets/migration-data.ico"
+        Height="680"
+        Width="980"
+        MinHeight="560"
+        MinWidth="820">
+
+    <Window.Style>
+        <Style TargetType="Window">
+            <Setter Property="Cursor" Value="Arrow" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsValidating}" Value="True">
+                    <Setter Property="Cursor" Value="Wait" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Style>
+
+    <Window.Resources>
+        <Style x:Key="CopyableCellTextBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="ValidationStatusIconBorderStyle" TargetType="Border">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="Concluído">
+                    <Setter Property="Background" Value="#E8F7EE" />
+                    <Setter Property="BorderBrush" Value="#22A06B" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Com erro">
+                    <Setter Property="Background" Value="#FDECEC" />
+                    <Setter Property="BorderBrush" Value="#D92D20" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Validando">
+                    <Setter Property="Background" Value="#EEF4FF" />
+                    <Setter Property="BorderBrush" Value="#2563EB" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ValidationStatusIconTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Symbol" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#6B7280" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Status}" Value="Concluído">
+                    <Setter Property="Foreground" Value="#16803D" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Com erro">
+                    <Setter Property="Foreground" Value="#B42318" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Status}" Value="Validando">
+                    <Setter Property="Foreground" Value="#2563EB" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -19,7 +86,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,18">
-            <TextBlock Text="Validador de CSV"
+            <TextBlock Text="Validação dos CSVs"
                        FontSize="24"
                        FontWeight="SemiBold" />
             <TextBlock Text="{Binding Mensagem}"
@@ -30,84 +97,188 @@
 
         <Grid Grid.Row="1" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBox Grid.Column="0"
+            <TextBlock Grid.Column="0"
+                       Margin="0,0,10,0"
+                       VerticalAlignment="Center"
+                       Text="Pasta dos CSVs:" />
+
+            <TextBox Grid.Column="1"
                      Height="34"
                      VerticalContentAlignment="Center"
                      IsReadOnly="True"
-                     Text="{Binding CsvFilePath, UpdateSourceTrigger=PropertyChanged}" />
+                     Text="{Binding CsvFolderPath, UpdateSourceTrigger=PropertyChanged}" />
 
-            <Button Grid.Column="1"
+            <Button Grid.Column="2"
                     Width="130"
                     Height="34"
                     Margin="8,0,0,0"
-                    Content="Selecionar CSV"
-                    Command="{Binding SelecionarArquivoCommand}" />
+                    Content="Selecionar pasta"
+                    Command="{Binding SelecionarPastaCommand}" />
 
-            <Button Grid.Column="2"
-                    Width="110"
+            <Button Grid.Column="3"
+                    Width="120"
                     Height="34"
                     Margin="8,0,0,0"
-                    Content="Validar"
-                    Command="{Binding ValidarCsvCommand}" />
+                    Content="Validar CSVs"
+                    Command="{Binding ValidarArquivosCommand}" />
         </Grid>
 
-        <Border Grid.Row="2"
-                Padding="12"
-                Margin="0,0,0,16"
-                BorderBrush="#DDDDDD"
-                BorderThickness="1"
-                CornerRadius="4">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
+        <Grid Grid.Row="2" Margin="0,0,0,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                <TextBox Text="{Binding Status}"
-                         VerticalAlignment="Center"
-                         VerticalContentAlignment="Center"
-                         IsReadOnly="True"
-                         BorderThickness="0"
-                         Background="Transparent"
-                         FontSize="14" />
+            <ProgressBar Grid.Row="0"
+                         Height="16"
+                         Minimum="0"
+                         Maximum="{Binding ProgressMaximum}"
+                         Value="{Binding ProgressValue}" />
 
-                <TextBlock Grid.Column="1"
-                           VerticalAlignment="Center"
-                           FontSize="14">
-                    <Run Text="Linhas lidas: " />
-                    <Run Text="{Binding TotalRows}" />
-                </TextBlock>
-            </Grid>
-        </Border>
+            <TextBlock Grid.Row="1"
+                       Text="{Binding ProgressText}"
+                       Margin="0,6,0,0"
+                       Foreground="#555555" />
+        </Grid>
 
-        <DataGrid Grid.Row="3"
+        <Grid Grid.Row="3" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ListBox Grid.Column="0"
+                     Height="180"
+                     ItemsSource="{Binding Arquivos}"
+                     SelectedItem="{Binding SelectedArquivo, Mode=TwoWay}"
+                     BorderBrush="#DDDDDD"
+                     BorderThickness="1">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Style="{StaticResource ValidationStatusIconBorderStyle}">
+                                <TextBlock Text="{Binding Icone}"
+                                           Style="{StaticResource ValidationStatusIconTextStyle}" />
+                            </Border>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding CsvFileName}"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Detalhe}"
+                                           Margin="0,2,0,0"
+                                           Foreground="#666666"
+                                           FontSize="12" />
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Status}"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center"
+                                       Foreground="#444444" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <Border Grid.Column="1"
+                    Padding="12"
+                    Margin="16,0,0,0"
+                    BorderBrush="#DDDDDD"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBox Grid.Row="0"
+                             Text="{Binding Status}"
+                             VerticalContentAlignment="Top"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             FontSize="14" />
+
+                    <TextBlock Grid.Row="1"
+                               Margin="0,12,0,0"
+                               FontSize="14">
+                        <Run Text="Linhas lidas do arquivo selecionado: " />
+                        <Run Text="{Binding TotalRows}" />
+                    </TextBlock>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <DataGrid Grid.Row="4"
                   ItemsSource="{Binding Erros}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
                   IsReadOnly="True"
+                  SelectionUnit="Cell"
+                  SelectionMode="Extended"
+                  ClipboardCopyMode="IncludeHeader"
                   GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Linha"
-                                    Binding="{Binding Linha}"
-                                    Width="70" />
-                <DataGridTextColumn Header="Coluna"
-                                    Binding="{Binding Coluna}"
-                                    Width="140" />
-                <DataGridTextColumn Header="Valor informado"
-                                    Binding="{Binding ValorInformado}"
-                                    Width="160" />
-                <DataGridTextColumn Header="Tipo"
-                                    Binding="{Binding Tipo}"
-                                    Width="130" />
-                <DataGridTextColumn Header="Mensagem"
-                                    Binding="{Binding Mensagem}"
-                                    Width="*" />
+                <DataGridTemplateColumn Header="Linha" Width="70">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Linha, Mode=OneWay}"
+                                     Style="{StaticResource CopyableCellTextBoxStyle}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Coluna" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Coluna, Mode=OneWay}"
+                                     Style="{StaticResource CopyableCellTextBoxStyle}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Valor informado" Width="160">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding ValorInformado, Mode=OneWay}"
+                                     Style="{StaticResource CopyableCellTextBoxStyle}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Tipo" Width="130">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Tipo, Mode=OneWay}"
+                                     Style="{StaticResource CopyableCellTextBoxStyle}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTemplateColumn Header="Mensagem" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding Mensagem, Mode=OneWay}"
+                                     Style="{StaticResource CopyableCellTextBoxStyle}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

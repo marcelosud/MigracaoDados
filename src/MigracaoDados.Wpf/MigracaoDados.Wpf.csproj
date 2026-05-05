@@ -16,11 +16,22 @@
   </ItemGroup>
 
 	
-	<ItemGroup>
+  <ItemGroup>
+  <None Remove="Assets\migration-data.ico" />
+  <Resource Include="Assets\migration-data.ico" />
   <None Update="appsettings.json">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
   <None Include="..\..\Template Layout XLSX\Contrato.xlsx" Link="LayoutTemplates\Contrato.xlsx">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </None>
+  <None Include="..\..\Template Layout XLSX\Prestacoes.xlsx" Link="LayoutTemplates\Prestacoes.xlsx">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </None>
+  <None Include="..\..\Template Layout XLSX\Pagamentos.xlsx" Link="LayoutTemplates\Pagamentos.xlsx">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </None>
+  <None Include="..\..\Template Layout XLSX\Liberacoes.xlsx" Link="LayoutTemplates\Liberacoes.xlsx">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
 </ItemGroup>
@@ -35,6 +46,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+	<ApplicationIcon>Assets\migration-data.ico</ApplicationIcon>
 	<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
 

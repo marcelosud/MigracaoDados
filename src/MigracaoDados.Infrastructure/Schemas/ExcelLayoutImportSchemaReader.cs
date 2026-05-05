@@ -8,7 +8,8 @@ public sealed class ExcelLayoutImportSchemaReader : IImportSchemaReader
 {
     public Task<ImportSchema> ReadAsync(string schemaPath, CancellationToken cancellationToken = default)
     {
-        using var workbook = new XLWorkbook(schemaPath);
+        using var stream = new FileStream(schemaPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var workbook = new XLWorkbook(stream);
         var worksheet = workbook.Worksheets.First();
         var columns = new List<ImportColumnDefinition>();
 

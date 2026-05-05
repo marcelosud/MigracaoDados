@@ -1,26 +1,114 @@
-﻿<Window x:Class="MigracaoDados.Wpf.MainWindow"
+<Window x:Class="MigracaoDados.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="MigracaoDados"
-        Height="350"
-        Width="600">
+        Height="560"
+        Width="920"
+        MinHeight="480"
+        MinWidth="760">
 
-    <Grid>
-        <StackPanel VerticalAlignment="Center"
-                HorizontalAlignment="Center"
-                Width="300">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
+        <StackPanel Grid.Row="0" Margin="0,0,0,18">
+            <TextBlock Text="Validador de CSV"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
             <TextBlock Text="{Binding Mensagem}"
-                   FontSize="18"
-                   TextAlignment="Center"
-                   Margin="0,0,0,15"/>
-
-            <Button Content="Atualizar"
-                Command="{Binding AtualizarMensagemCommand}" />
-
+                       Margin="0,6,0,0"
+                       FontSize="14"
+                       Foreground="#555555" />
         </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox Grid.Column="0"
+                     Height="34"
+                     VerticalContentAlignment="Center"
+                     IsReadOnly="True"
+                     Text="{Binding CsvFilePath, UpdateSourceTrigger=PropertyChanged}" />
+
+            <Button Grid.Column="1"
+                    Width="130"
+                    Height="34"
+                    Margin="8,0,0,0"
+                    Content="Selecionar CSV"
+                    Command="{Binding SelecionarArquivoCommand}" />
+
+            <Button Grid.Column="2"
+                    Width="110"
+                    Height="34"
+                    Margin="8,0,0,0"
+                    Content="Validar"
+                    Command="{Binding ValidarCsvCommand}" />
+        </Grid>
+
+        <Border Grid.Row="2"
+                Padding="12"
+                Margin="0,0,0,16"
+                BorderBrush="#DDDDDD"
+                BorderThickness="1"
+                CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox Text="{Binding Status}"
+                         VerticalAlignment="Center"
+                         VerticalContentAlignment="Center"
+                         IsReadOnly="True"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         FontSize="14" />
+
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           FontSize="14">
+                    <Run Text="Linhas lidas: " />
+                    <Run Text="{Binding TotalRows}" />
+                </TextBlock>
+            </Grid>
+        </Border>
+
+        <DataGrid Grid.Row="3"
+                  ItemsSource="{Binding Erros}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False"
+                  IsReadOnly="True"
+                  GridLinesVisibility="Horizontal"
+                  HeadersVisibility="Column">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Linha"
+                                    Binding="{Binding Linha}"
+                                    Width="70" />
+                <DataGridTextColumn Header="Coluna"
+                                    Binding="{Binding Coluna}"
+                                    Width="140" />
+                <DataGridTextColumn Header="Valor informado"
+                                    Binding="{Binding ValorInformado}"
+                                    Width="160" />
+                <DataGridTextColumn Header="Tipo"
+                                    Binding="{Binding Tipo}"
+                                    Width="130" />
+                <DataGridTextColumn Header="Mensagem"
+                                    Binding="{Binding Mensagem}"
+                                    Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </Window>

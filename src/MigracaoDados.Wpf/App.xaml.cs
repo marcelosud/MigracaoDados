@@ -1,6 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MigracaoDados.Application.Interfaces;
+using MigracaoDados.Application.Services;
+using MigracaoDados.Application.UseCases;
+using MigracaoDados.Infrastructure.Csv;
+using MigracaoDados.Infrastructure.Schemas;
 using Serilog;
 using System.IO;
 using System.Windows;
@@ -29,7 +34,10 @@ public partial class App : System.Windows.Application
             {
                 services.AddSingleton<MainWindow>();
                 services.AddSingleton<ViewModels.MainViewModel>();
-                services.AddSingleton<MigracaoDados.Application.UseCases.GerarMensagemBoasVindasUseCase>();
+                services.AddSingleton<ValidarCsvUseCase>();
+                services.AddSingleton<ICsvValidationService, CsvValidationService>();
+                services.AddSingleton<ICsvFileReader, CsvFileReader>();
+                services.AddSingleton<IImportSchemaReader, ExcelLayoutImportSchemaReader>();
             })
             .Build();
     }

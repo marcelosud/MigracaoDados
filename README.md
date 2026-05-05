@@ -10,15 +10,15 @@ O projeto nasce como uma aplicacao desktop WPF em .NET 8 LTS, com foco em uso in
 
 ```text
 MigracaoDados
-├── src
-│   ├── MigracaoDados.Domain
-│   ├── MigracaoDados.Application
-│   ├── MigracaoDados.Infrastructure
-│   ├── MigracaoDados.Avalonia
-│   └── MigracaoDados.Wpf
-└── tests
-    ├── MigracaoDados.Application.Tests
-    └── MigracaoDados.Domain.Tests
+|-- src
+|   |-- MigracaoDados.Domain
+|   |-- MigracaoDados.Application
+|   |-- MigracaoDados.Infrastructure
+|   |-- MigracaoDados.Avalonia
+|   `-- MigracaoDados.Wpf
+`-- tests
+    |-- MigracaoDados.Application.Tests
+    `-- MigracaoDados.Domain.Tests
 ```
 
 - `Domain`: regras de negocio puras, entidades e value objects.
@@ -30,12 +30,50 @@ MigracaoDados
 
 ## Estado Atual
 
-A base inicial ja possui WPF com Host Builder, injecao de dependencia, `appsettings.json`, Serilog e um primeiro caso de uso demonstrativo chamado pela ViewModel.
+A base atual ja possui um primeiro fluxo real de MVP: validacao de CSV de Contrato usando o layout oficial em XLSX como fonte de regras. A UI WPF permite selecionar um arquivo `.csv`, executar a validacao e visualizar erros com linha, coluna, valor informado, tipo do erro e mensagem.
+
+O layout padrao esta em:
+
+```text
+Template Layout XLSX/Contrato.xlsx
+```
+
+O arquivo de layout deve possuir as colunas:
+
+```text
+ID; Descricao; Mnemonico; Obrigatoriedade; Tipo; Tamanho; Formato
+```
+
+Tipos suportados nesta versao:
+
+- `Text`
+- `Numeric`
+- `Integer`
+- `Decimal`
+- `Date`
+- `Boolean`
+
+Validacoes suportadas:
+
+- arquivo vazio ou sem cabecalho;
+- coluna esperada ausente;
+- coluna extra nao prevista no schema;
+- ordem de colunas diferente da ordem do `ID` no layout;
+- campo obrigatorio vazio;
+- tipo invalido.
+- tamanho maior que o permitido no layout.
+
+## Como Validar
+
+```powershell
+dotnet build MigracaoDados.slnx
+dotnet test MigracaoDados.slnx
+```
 
 ## Proximos Passos
 
-1. Definir o primeiro fluxo real de migracao.
-2. Modelar entradas, saidas, validacoes e resultado da migracao.
-3. Criar contratos em `Application` e implementacoes em `Infrastructure`.
-4. Evoluir a UI para selecao de origem, execucao, progresso e resumo.
-5. Cobrir regras principais com testes automatizados.
+1. Permitir escolher o tipo de migracao/layout pela UI.
+2. Adicionar preview de dados validos antes da importacao.
+3. Definir contratos de importacao SQL Server.
+4. Implementar importacao SQL Server com transacao e rollback.
+5. Evoluir historico, auditoria e sugestoes de correcao.

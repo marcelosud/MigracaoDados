@@ -2,9 +2,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MigracaoDados.Application\MigracaoDados.Application.csproj" />
+    <ProjectReference Include="..\MigracaoDados.Infrastructure\MigracaoDados.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
@@ -16,6 +18,9 @@
 	
 	<ItemGroup>
   <None Update="appsettings.json">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </None>
+  <None Include="..\..\Template Layout XLSX\Contrato.xlsx" Link="LayoutTemplates\Contrato.xlsx">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
 </ItemGroup>

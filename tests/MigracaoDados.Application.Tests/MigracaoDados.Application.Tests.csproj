@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MigracaoDados.Application\MigracaoDados.Application.csproj" />
+    <ProjectReference Include="..\..\src\MigracaoDados.Infrastructure\MigracaoDados.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -88,6 +88,25 @@ public sealed class SqliteDatabaseConnectionRepository : IDatabaseConnectionRepo
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task DeleteAsync(
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureDatabaseAsync(cancellationToken);
+
+        await using var connection = CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM DatabaseConnections
+            WHERE Key = $key;
+            """;
+        command.Parameters.AddWithValue("$key", key);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private async Task EnsureDatabaseAsync(CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_databasePath);

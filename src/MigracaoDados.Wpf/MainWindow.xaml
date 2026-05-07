@@ -19,6 +19,9 @@
                 <DataTrigger Binding="{Binding IsValidating}" Value="True">
                     <Setter Property="Cursor" Value="Wait" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsConnectingDestination}" Value="True">
+                    <Setter Property="Cursor" Value="Wait" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding DestinoConnection.IsBusy}" Value="True">
                     <Setter Property="Cursor" Value="Wait" />
                 </DataTrigger>
@@ -150,6 +153,7 @@
         </Style>
     </Window.Resources>
 
+    <Grid>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="Par&#226;metros">
@@ -167,11 +171,12 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0" Margin="0,0,0,18">
-                    <TextBlock Text="Validacao dos CSVs"
+                    <TextBlock Text="Assistente de Migração de Dados Evertec"
                                FontSize="24"
                                FontWeight="SemiBold" />
                     <TextBlock Text="{Binding Mensagem}"
@@ -233,6 +238,115 @@
                 </Grid>
 
                 <Grid Grid.Row="3" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Padding="12"
+                            BorderBrush="#DDDDDD"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Tag="{Binding CsvValidationStepState}"
+                                        Style="{StaticResource OperationStatusIconBorderStyle}">
+                                    <TextBlock Text="{Binding CsvValidationStepIcon}"
+                                               Tag="{Binding CsvValidationStepState}"
+                                               Style="{StaticResource OperationStatusIconTextStyle}" />
+                                </Border>
+                                <TextBlock Text="Etapa 1 - Validar CSVs"
+                                           Margin="8,2,0,0"
+                                           FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding CsvValidationStepDetail}"
+                                       Foreground="#555555"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Padding="12"
+                            Margin="12,0,0,0"
+                            BorderBrush="#DDDDDD"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Tag="{Binding DatabaseConnectionStepState}"
+                                        Style="{StaticResource OperationStatusIconBorderStyle}">
+                                    <TextBlock Text="{Binding DatabaseConnectionStepIcon}"
+                                               Tag="{Binding DatabaseConnectionStepState}"
+                                               Style="{StaticResource OperationStatusIconTextStyle}" />
+                                </Border>
+                                <TextBlock Text="{Binding DatabaseConnectionStepTitle}"
+                                           Margin="8,2,0,0"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding DatabaseConnectionStepDetail}"
+                                       Foreground="#555555"
+                                       TextWrapping="Wrap" />
+                            <Button Grid.Row="2"
+                                    Width="130"
+                                    Height="30"
+                                    Margin="0,12,0,0"
+                                    HorizontalAlignment="Left"
+                                    Content="Iniciar Etapa 2"
+                                    Command="{Binding IniciarConexaoDestinoCommand}"
+                                    IsEnabled="{Binding IsDatabaseConnectionStepEnabled}" />
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Column="2"
+                            Padding="12"
+                            Margin="12,0,0,0"
+                            BorderBrush="#DDDDDD"
+                            BorderThickness="1"
+                            CornerRadius="4">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Border Tag="{Binding StoredProceduresStepState}"
+                                        Style="{StaticResource OperationStatusIconBorderStyle}">
+                                    <TextBlock Text="{Binding StoredProceduresStepIcon}"
+                                               Tag="{Binding StoredProceduresStepState}"
+                                               Style="{StaticResource OperationStatusIconTextStyle}" />
+                                </Border>
+                                <TextBlock Text="Etapa 3 - Executar Stored Procedures de Migração"
+                                           Margin="8,2,0,0"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding StoredProceduresStepDetail}"
+                                       Foreground="#555555"
+                                       TextWrapping="Wrap" />
+                            <Button Grid.Row="2"
+                                    Width="130"
+                                    Height="30"
+                                    Margin="0,12,0,0"
+                                    HorizontalAlignment="Left"
+                                    Content="Preparar Etapa 3"
+                                    Command="{Binding ExecutarStoredProceduresCommand}"
+                                    IsEnabled="{Binding IsStoredProceduresStepEnabled}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="4" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="360" />
                         <ColumnDefinition Width="*" />
@@ -309,7 +423,7 @@
                     </Border>
                 </Grid>
 
-                <DataGrid Grid.Row="4"
+                <DataGrid Grid.Row="5"
                           ItemsSource="{Binding Erros}"
                           AutoGenerateColumns="False"
                           CanUserAddRows="False"
@@ -428,6 +542,11 @@
                                             Margin="8,0,0,0"
                                             Content="Salvar"
                                             Command="{Binding SalvarCommand}" />
+                                    <Button Width="100"
+                                            Height="34"
+                                            Margin="8,0,0,0"
+                                            Content="Excluir"
+                                            Command="{Binding ExcluirCommand}" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -522,6 +641,11 @@
                                             Margin="8,0,0,0"
                                             Content="Salvar"
                                             Command="{Binding SalvarCommand}" />
+                                    <Button Width="100"
+                                            Height="34"
+                                            Margin="8,0,0,0"
+                                            Content="Excluir"
+                                            Command="{Binding ExcluirCommand}" />
                                 </StackPanel>
                             </StackPanel>
 
@@ -576,4 +700,140 @@
             </Grid>
         </Grid>
     </DockPanel>
+
+    <Border Background="#80000000"
+            Visibility="{Binding DestinationConnectionPopupVisibility}">
+        <Border Width="780"
+                MaxHeight="660"
+                Padding="20"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                Background="White"
+                BorderBrush="#D1D5DB"
+                BorderThickness="1"
+                CornerRadius="6">
+            <Grid DataContext="{Binding DestinoConnection}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                    <TextBlock Text="Etapa 2 - Conexao com o Banco de Destino"
+                               FontSize="20"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="Informe, teste e salve os parametros para prosseguir. A proxima etapa so sera habilitada quando a conexao funcionar com sucesso."
+                               Margin="0,6,0,0"
+                               Foreground="#555555"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="360" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Tipo" Style="{StaticResource FieldLabelStyle}" />
+                            <ComboBox Height="34"
+                                      Margin="0,0,0,14"
+                                      ItemsSource="{Binding DatabaseTypes}"
+                                      SelectedItem="{Binding SelectedDatabaseType, Mode=TwoWay}" />
+
+                            <TextBlock Text="Servidor" Style="{StaticResource FieldLabelStyle}" />
+                            <TextBox Text="{Binding Server, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputTextBoxStyle}" />
+
+                            <TextBlock Text="Banco de Dados / Service Name" Style="{StaticResource FieldLabelStyle}" />
+                            <TextBox Text="{Binding Database, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputTextBoxStyle}" />
+
+                            <TextBlock Text="Usuario" Style="{StaticResource FieldLabelStyle}" />
+                            <TextBox Text="{Binding User, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputTextBoxStyle}" />
+
+                            <TextBlock Text="Senha" Style="{StaticResource FieldLabelStyle}" />
+                            <PasswordBox Height="34"
+                                         Margin="0,0,0,18"
+                                         behaviors:PasswordBoxBinding.BindPassword="True"
+                                         behaviors:PasswordBoxBinding.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <Button Width="140"
+                                    Height="34"
+                                    HorizontalAlignment="Left"
+                                    Content="Testar conexao"
+                                    Command="{Binding TestarConexaoCommand}" />
+                        </StackPanel>
+
+                        <Border Grid.Column="1"
+                                Margin="24,0,0,0"
+                                Padding="14"
+                                BorderBrush="#DDDDDD"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Border Tag="{Binding TestStatus}"
+                                            Style="{StaticResource OperationStatusIconBorderStyle}">
+                                        <TextBlock Text="{Binding TestIcon}"
+                                                   Tag="{Binding TestStatus}"
+                                                   Style="{StaticResource OperationStatusIconTextStyle}" />
+                                    </Border>
+                                    <TextBlock Text="Resultado do teste"
+                                               FontWeight="SemiBold"
+                                               Margin="8,2,0,0" />
+                                </StackPanel>
+                                <TextBox Text="{Binding TestResult}"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="110"
+                                         BorderThickness="0"
+                                         Background="Transparent" />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,18,0,8">
+                                    <Border Tag="{Binding SaveStatus}"
+                                            Style="{StaticResource OperationStatusIconBorderStyle}">
+                                        <TextBlock Text="{Binding SaveIcon}"
+                                                   Tag="{Binding SaveStatus}"
+                                                   Style="{StaticResource OperationStatusIconTextStyle}" />
+                                    </Border>
+                                    <TextBlock Text="Status de salvamento"
+                                               FontWeight="SemiBold"
+                                               Margin="8,2,0,0" />
+                                </StackPanel>
+                                <TextBox Text="{Binding SaveResult}"
+                                         IsReadOnly="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="70"
+                                         BorderThickness="0"
+                                         Background="Transparent" />
+                                <ProgressBar Margin="0,16,0,0"
+                                             Style="{StaticResource BusyProgressBarStyle}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </ScrollViewer>
+
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,18,0,0">
+                    <Button Width="90"
+                            Height="34"
+                            Content="Cancelar"
+                            Command="{Binding DataContext.CancelarConexaoDestinoPopupCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                    <Button Width="150"
+                            Height="34"
+                            Margin="8,0,0,0"
+                            Content="Salvar e continuar"
+                            Command="{Binding DataContext.ConfirmarConexaoDestinoPopupCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Border>
+    </Grid>
 </Window>

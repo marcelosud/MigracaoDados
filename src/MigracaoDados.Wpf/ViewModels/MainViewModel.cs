@@ -20,6 +20,7 @@ public class MainViewModel : INotifyPropertyChanged
         TestarConexaoBancoDadosUseCase testarConexaoBancoDadosUseCase,
         SalvarConexaoBancoDadosUseCase salvarConexaoBancoDadosUseCase,
         ObterConexaoBancoDadosUseCase obterConexaoBancoDadosUseCase,
+        ExcluirConexaoBancoDadosUseCase excluirConexaoBancoDadosUseCase,
         IConfiguration configuration)
     {
         _validarCsvUseCase = validarCsvUseCase;
@@ -29,18 +30,25 @@ public class MainViewModel : INotifyPropertyChanged
         AbrirConexoesBancoDadosCommand = new RelayCommand(AbrirConexoesBancoDados);
         SelecionarPastaCommand = new RelayCommand(SelecionarPasta);
         ValidarArquivosCommand = new RelayCommand(async () => await ValidarArquivosAsync(), PodeValidarArquivos);
+        IniciarConexaoDestinoCommand = new RelayCommand(async () => await IniciarConexaoDestinoAsync(), PodeIniciarConexaoDestino);
+        ConfirmarConexaoDestinoPopupCommand = new RelayCommand(async () => await ConfirmarConexaoDestinoPopupAsync(), PodeConfirmarConexaoDestinoPopup);
+        CancelarConexaoDestinoPopupCommand = new RelayCommand(CancelarConexaoDestinoPopup);
+        ExecutarStoredProceduresCommand = new RelayCommand(PrepararStoredProcedures, PodeExecutarStoredProcedures);
         DestinoConnection = new DatabaseConnectionViewModel(
             "Destino",
             "Banco de Dados de Destino",
             testarConexaoBancoDadosUseCase,
             salvarConexaoBancoDadosUseCase,
-            obterConexaoBancoDadosUseCase);
+            obterConexaoBancoDadosUseCase,
+            excluirConexaoBancoDadosUseCase);
+        DestinoConnection.PropertyChanged += OnDestinoConnectionPropertyChanged;
         OrigemConnection = new DatabaseConnectionViewModel(
             "Origem",
             "Banco de Dados de Origem",
             testarConexaoBancoDadosUseCase,
             salvarConexaoBancoDadosUseCase,
-            obterConexaoBancoDadosUseCase);
+            obterConexaoBancoDadosUseCase,
+            excluirConexaoBancoDadosUseCase);
 
         Arquivos.Add(new CsvValidationFileItemViewModel("Contrato.csv", "Contrato.xlsx"));
         Arquivos.Add(new CsvValidationFileItemViewModel("Prestacao.csv", "Prestacoes.xlsx"));
@@ -49,10 +57,16 @@ public class MainViewModel : INotifyPropertyChanged
 
         ProgressMaximum = Arquivos.Count;
         SelectedArquivo = Arquivos.FirstOrDefault();
+        ResetarEtapas();
         AbrirValidacao();
     }
 
-    private string _mensagem = "Selecione a pasta onde estão os arquivos CSV para iniciar a validação sequencial.";
+    private string _mensagem =
+    "Siga as orientações abaixo do assistente de migração de dados.\n" +
+    "Etapa 1: Identificação e Validação dos arquivos CSVs.\n" +
+    "Etapa 2: Conexão com o Banco de Dados de Destino.\n" +
+    "Etapa 3: Migração para o Banco de Dados de Destino.";
+
     public string Mensagem
     {
         get => _mensagem;
@@ -158,6 +172,10 @@ public class MainViewModel : INotifyPropertyChanged
     public RelayCommand ValidarArquivosCommand { get; }
     public RelayCommand AbrirValidacaoCommand { get; }
     public RelayCommand AbrirConexoesBancoDadosCommand { get; }
+    public RelayCommand IniciarConexaoDestinoCommand { get; }
+    public RelayCommand ConfirmarConexaoDestinoPopupCommand { get; }
+    public RelayCommand CancelarConexaoDestinoPopupCommand { get; }
+    public RelayCommand ExecutarStoredProceduresCommand { get; }
     public DatabaseConnectionViewModel DestinoConnection { get; }
     public DatabaseConnectionViewModel OrigemConnection { get; }
     public ObservableCollection<CsvValidationFileItemViewModel> Arquivos { get; } = new();
@@ -185,6 +203,152 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private Visibility _destinationConnectionPopupVisibility = Visibility.Collapsed;
+    public Visibility DestinationConnectionPopupVisibility
+    {
+        get => _destinationConnectionPopupVisibility;
+        set
+        {
+            _destinationConnectionPopupVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private bool _isConnectingDestination;
+    public bool IsConnectingDestination
+    {
+        get => _isConnectingDestination;
+        set
+        {
+            _isConnectingDestination = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsDatabaseConnectionStepEnabled));
+            IniciarConexaoDestinoCommand.RaiseCanExecuteChanged();
+            ConfirmarConexaoDestinoPopupCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private bool _destinationConnectionReady;
+    public bool DestinationConnectionReady
+    {
+        get => _destinationConnectionReady;
+        set
+        {
+            _destinationConnectionReady = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsStoredProceduresStepEnabled));
+            ExecutarStoredProceduresCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool AreCsvFilesValid => Arquivos.Count > 0 && Arquivos.All(arquivo => arquivo.IsValid);
+    public bool IsDatabaseConnectionStepEnabled => AreCsvFilesValid && !DestinationConnectionReady && !IsConnectingDestination;
+    public bool IsStoredProceduresStepEnabled => DestinationConnectionReady;
+
+    public string DatabaseConnectionStepTitle =>
+        string.IsNullOrWhiteSpace(DestinoConnection.Server)
+            ? "Etapa 2 - Conexão com o Banco de Destino"
+            : $"Etapa 2 - Conexão com o Banco de Destino ({DestinoConnection.Server})";
+
+    private string _csvValidationStepState = "Pendente";
+    public string CsvValidationStepState
+    {
+        get => _csvValidationStepState;
+        set
+        {
+            _csvValidationStepState = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _csvValidationStepIcon = "-";
+    public string CsvValidationStepIcon
+    {
+        get => _csvValidationStepIcon;
+        set
+        {
+            _csvValidationStepIcon = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _csvValidationStepDetail = "Aguardando validação dos arquivos CSV.";
+    public string CsvValidationStepDetail
+    {
+        get => _csvValidationStepDetail;
+        set
+        {
+            _csvValidationStepDetail = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _databaseConnectionStepState = "Pendente";
+    public string DatabaseConnectionStepState
+    {
+        get => _databaseConnectionStepState;
+        set
+        {
+            _databaseConnectionStepState = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _databaseConnectionStepIcon = "-";
+    public string DatabaseConnectionStepIcon
+    {
+        get => _databaseConnectionStepIcon;
+        set
+        {
+            _databaseConnectionStepIcon = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _databaseConnectionStepDetail = "Conclua a validação dos CSVs para habilitar a conexão.";
+    public string DatabaseConnectionStepDetail
+    {
+        get => _databaseConnectionStepDetail;
+        set
+        {
+            _databaseConnectionStepDetail = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _storedProceduresStepState = "Pendente";
+    public string StoredProceduresStepState
+    {
+        get => _storedProceduresStepState;
+        set
+        {
+            _storedProceduresStepState = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _storedProceduresStepIcon = "-";
+    public string StoredProceduresStepIcon
+    {
+        get => _storedProceduresStepIcon;
+        set
+        {
+            _storedProceduresStepIcon = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _storedProceduresStepDetail = "Aguardando conexão com o banco de destino.";
+    public string StoredProceduresStepDetail
+    {
+        get => _storedProceduresStepDetail;
+        set
+        {
+            _storedProceduresStepDetail = value;
+            OnPropertyChanged();
+        }
+    }
+
     private void AbrirValidacao()
     {
         ValidationViewVisibility = Visibility.Visible;
@@ -195,6 +359,137 @@ public class MainViewModel : INotifyPropertyChanged
     {
         ValidationViewVisibility = Visibility.Collapsed;
         DatabaseConnectionsViewVisibility = Visibility.Visible;
+    }
+
+    private void OnDestinoConnectionPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(DatabaseConnectionViewModel.Server))
+        {
+            OnPropertyChanged(nameof(DatabaseConnectionStepTitle));
+        }
+
+        if (DestinationConnectionReady
+            && (e.PropertyName is nameof(DatabaseConnectionViewModel.SelectedDatabaseType)
+                or nameof(DatabaseConnectionViewModel.Server)
+                or nameof(DatabaseConnectionViewModel.Database)
+                or nameof(DatabaseConnectionViewModel.User)
+                or nameof(DatabaseConnectionViewModel.Password)))
+        {
+            MarcarEtapaConexaoPendente("Parâmetros do banco de destino alterados. Teste a conexão novamente para prosseguir.");
+        }
+
+        if (e.PropertyName is nameof(DatabaseConnectionViewModel.IsBusy)
+            or nameof(DatabaseConnectionViewModel.HasRequiredParameters)
+            or nameof(DatabaseConnectionViewModel.LastTestSucceeded))
+        {
+            IniciarConexaoDestinoCommand.RaiseCanExecuteChanged();
+            ConfirmarConexaoDestinoPopupCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private bool PodeIniciarConexaoDestino()
+    {
+        return IsDatabaseConnectionStepEnabled && !DestinoConnection.IsBusy;
+    }
+
+    private bool PodeConfirmarConexaoDestinoPopup()
+    {
+        return DestinationConnectionPopupVisibility == Visibility.Visible
+            && !IsConnectingDestination
+            && !DestinoConnection.IsBusy;
+    }
+
+    private bool PodeExecutarStoredProcedures()
+    {
+        return IsStoredProceduresStepEnabled;
+    }
+
+    private async Task IniciarConexaoDestinoAsync()
+    {
+        if (!PodeIniciarConexaoDestino())
+        {
+            return;
+        }
+
+        IsConnectingDestination = true;
+        MarcarEtapaConexaoProcessando("Verificando parâmetros do banco de destino...");
+
+        try
+        {
+            await DestinoConnection.CarregarAsync();
+            OnPropertyChanged(nameof(DatabaseConnectionStepTitle));
+
+            if (!DestinoConnection.HasRequiredParameters)
+            {
+                MarcarEtapaConexaoPendente("Informe os parâmetros do banco de destino para prosseguir.");
+                DestinationConnectionPopupVisibility = Visibility.Visible;
+                return;
+            }
+
+            var connectionSucceeded = await DestinoConnection.TestarConexaoAsync();
+            if (!connectionSucceeded)
+            {
+                MarcarEtapaConexaoErro("Não foi possível conectar com os parâmetros salvos. Revise os dados para prosseguir.");
+                DestinationConnectionPopupVisibility = Visibility.Visible;
+                return;
+            }
+
+            MarcarEtapaConexaoSucesso();
+        }
+        finally
+        {
+            IsConnectingDestination = false;
+        }
+    }
+
+    private async Task ConfirmarConexaoDestinoPopupAsync()
+    {
+        if (!PodeConfirmarConexaoDestinoPopup())
+        {
+            return;
+        }
+
+        IsConnectingDestination = true;
+        MarcarEtapaConexaoProcessando("Testando e salvando a conexão com o banco de destino...");
+
+        try
+        {
+            var connectionSucceeded = await DestinoConnection.TestarConexaoAsync();
+            if (!connectionSucceeded)
+            {
+                MarcarEtapaConexaoErro("A conexão não funcionou. Corrija os parâmetros antes de prosseguir.");
+                return;
+            }
+
+            var saveSucceeded = await DestinoConnection.SalvarAsync();
+            if (!saveSucceeded)
+            {
+                MarcarEtapaConexaoErro("A conexão funcionou, mas os parâmetros não foram salvos.");
+                return;
+            }
+
+            DestinationConnectionPopupVisibility = Visibility.Collapsed;
+            MarcarEtapaConexaoSucesso();
+        }
+        finally
+        {
+            IsConnectingDestination = false;
+        }
+    }
+
+    private void CancelarConexaoDestinoPopup()
+    {
+        DestinationConnectionPopupVisibility = Visibility.Collapsed;
+
+        if (!DestinationConnectionReady && AreCsvFilesValid)
+        {
+            MarcarEtapaConexaoPendente("Conexão com o banco de destino pendente.");
+        }
+    }
+
+    private void PrepararStoredProcedures()
+    {
+        StoredProceduresStepDetail = "Banco de destino conectado. A execução das stored procedures será configurada na próxima etapa.";
     }
 
     private void SelecionarPasta()
@@ -228,6 +523,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         IsValidating = true;
         ResetarValidacao();
+        MarcarEtapaValidacaoProcessando();
 
         try
         {
@@ -246,6 +542,7 @@ public class MainViewModel : INotifyPropertyChanged
                     arquivo.MarcarErro("Arquivo nao encontrado.", 0);
                     ProgressText = $"{ProgressValue} de {ProgressMaximum} arquivo(s) validado(s).";
                     Status = $"{arquivo.CsvFileName} nao encontrado. A validação foi interrompida.";
+                    MarcarEtapaValidacaoErro($"Validação interrompida em {arquivo.CsvFileName}: arquivo não encontrado.");
                     return;
                 }
 
@@ -268,6 +565,7 @@ public class MainViewModel : INotifyPropertyChanged
                     arquivo.MarcarErro($"{result.Errors.Count} erro(s) encontrado(s).", result.TotalRows);
                     ProgressText = $"{ProgressValue} de {ProgressMaximum} arquivo(s) validado(s).";
                     Status = $"{arquivo.CsvFileName} inválido. Corrija o arquivo antes de validar os próximos.";
+                    MarcarEtapaValidacaoErro($"Validação interrompida em {arquivo.CsvFileName}: {result.Errors.Count} erro(s) encontrado(s).");
                     return;
                 }
 
@@ -277,6 +575,8 @@ public class MainViewModel : INotifyPropertyChanged
             }
 
             Status = "Todos os arquivos CSV foram validados com sucesso.";
+            MarcarEtapaValidacaoSucesso();
+            MarcarEtapaConexaoPendente("Validação concluída. Inicie a conexão com o banco de destino.");
         }
         catch (Exception exception)
         {
@@ -286,6 +586,7 @@ public class MainViewModel : INotifyPropertyChanged
             }
 
             Status = $"Falha ao validar CSV: {exception.Message}";
+            MarcarEtapaValidacaoErro($"Falha ao validar CSV: {exception.Message}");
         }
         finally
         {
@@ -305,6 +606,7 @@ public class MainViewModel : INotifyPropertyChanged
         TotalRows = 0;
         ProgressValue = 0;
         ProgressText = $"0 de {ProgressMaximum} arquivo(s) validado(s).";
+        ResetarEtapas();
     }
 
     private void AtualizarErrosSelecionados()
@@ -323,6 +625,106 @@ public class MainViewModel : INotifyPropertyChanged
         {
             Erros.Add(error);
         }
+    }
+
+    private void ResetarEtapas()
+    {
+        DestinationConnectionReady = false;
+        DestinationConnectionPopupVisibility = Visibility.Collapsed;
+
+        CsvValidationStepState = "Pendente";
+        CsvValidationStepIcon = "-";
+        CsvValidationStepDetail = "Aguardando validação dos arquivos CSV.";
+
+        DatabaseConnectionStepState = "Pendente";
+        DatabaseConnectionStepIcon = "-";
+        DatabaseConnectionStepDetail = "Conclua a validação dos CSVs para habilitar a conexão.";
+
+        StoredProceduresStepState = "Pendente";
+        StoredProceduresStepIcon = "-";
+        StoredProceduresStepDetail = "Aguardando conexão com o banco de destino.";
+
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaValidacaoProcessando()
+    {
+        CsvValidationStepState = "Processando";
+        CsvValidationStepIcon = "...";
+        CsvValidationStepDetail = "Validando arquivos CSV obrigatórios.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaValidacaoSucesso()
+    {
+        CsvValidationStepState = "Sucesso";
+        CsvValidationStepIcon = "OK";
+        CsvValidationStepDetail = "Todos os arquivos CSV obrigatórios foram validados com sucesso.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaValidacaoErro(string detail)
+    {
+        CsvValidationStepState = "Erro";
+        CsvValidationStepIcon = "X";
+        CsvValidationStepDetail = detail;
+        MarcarEtapaConexaoPendente("Corrija a validação dos CSVs para habilitar a conexão.");
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaConexaoPendente(string detail)
+    {
+        DestinationConnectionReady = false;
+        DatabaseConnectionStepState = "Pendente";
+        DatabaseConnectionStepIcon = "-";
+        DatabaseConnectionStepDetail = detail;
+        StoredProceduresStepState = "Pendente";
+        StoredProceduresStepIcon = "-";
+        StoredProceduresStepDetail = "Aguardando conexão com o banco de destino.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaConexaoProcessando(string detail)
+    {
+        DatabaseConnectionStepState = "Processando";
+        DatabaseConnectionStepIcon = "...";
+        DatabaseConnectionStepDetail = detail;
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaConexaoErro(string detail)
+    {
+        DestinationConnectionReady = false;
+        DatabaseConnectionStepState = "Erro";
+        DatabaseConnectionStepIcon = "X";
+        DatabaseConnectionStepDetail = detail;
+        StoredProceduresStepState = "Pendente";
+        StoredProceduresStepIcon = "-";
+        StoredProceduresStepDetail = "Aguardando conexão com o banco de destino.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaConexaoSucesso()
+    {
+        DestinationConnectionReady = true;
+        DatabaseConnectionStepState = "Sucesso";
+        DatabaseConnectionStepIcon = "OK";
+        DatabaseConnectionStepDetail = $"Conexão realizada com sucesso em {DestinoConnection.Server}.";
+        StoredProceduresStepState = "Pendente";
+        StoredProceduresStepIcon = "-";
+        StoredProceduresStepDetail = "Banco conectado. Próxima etapa: configurar a execução das stored procedures de migração.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void AtualizarDisponibilidadeEtapas()
+    {
+        OnPropertyChanged(nameof(AreCsvFilesValid));
+        OnPropertyChanged(nameof(IsDatabaseConnectionStepEnabled));
+        OnPropertyChanged(nameof(IsStoredProceduresStepEnabled));
+        OnPropertyChanged(nameof(DatabaseConnectionStepTitle));
+        IniciarConexaoDestinoCommand.RaiseCanExecuteChanged();
+        ConfirmarConexaoDestinoPopupCommand.RaiseCanExecuteChanged();
+        ExecutarStoredProceduresCommand.RaiseCanExecuteChanged();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -392,10 +794,22 @@ public sealed class CsvValidationFileItemViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _isValid;
+    public bool IsValid
+    {
+        get => _isValid;
+        private set
+        {
+            _isValid = value;
+            OnPropertyChanged();
+        }
+    }
+
     public void Resetar()
     {
         Errors.Clear();
         TotalRows = 0;
+        IsValid = false;
         Icone = "-";
         Status = "Pendente";
         Detalhe = "Aguardando validação";
@@ -411,6 +825,7 @@ public sealed class CsvValidationFileItemViewModel : INotifyPropertyChanged
     public void MarcarSucesso(int totalRows)
     {
         TotalRows = totalRows;
+        IsValid = true;
         Icone = "✓";
         Status = "Concluído";
         Detalhe = $"{totalRows} linha(s) lida(s)";
@@ -419,6 +834,7 @@ public sealed class CsvValidationFileItemViewModel : INotifyPropertyChanged
     public void MarcarErro(string detalhe, int totalRows)
     {
         TotalRows = totalRows;
+        IsValid = false;
         Icone = "X";
         Status = "Com erro";
         Detalhe = detalhe;

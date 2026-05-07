@@ -40,6 +40,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<TestarConexaoBancoDadosUseCase>();
                 services.AddSingleton<SalvarConexaoBancoDadosUseCase>();
                 services.AddSingleton<ObterConexaoBancoDadosUseCase>();
+                services.AddSingleton<ExcluirConexaoBancoDadosUseCase>();
                 services.AddSingleton<ICsvValidationService, CsvValidationService>();
                 services.AddSingleton<ICsvFileReader, CsvFileReader>();
                 services.AddSingleton<IImportSchemaReader, ExcelLayoutImportSchemaReader>();

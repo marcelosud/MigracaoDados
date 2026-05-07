@@ -7,4 +7,6 @@ public interface IDatabaseConnectionRepository
     Task<DatabaseConnectionProfile?> GetAsync(string key, CancellationToken cancellationToken = default);
 
     Task SaveAsync(DatabaseConnectionProfile profile, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(string key, CancellationToken cancellationToken = default);
 }

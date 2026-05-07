@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Windows;
 
 namespace MigracaoDados.Wpf.ViewModels;
 
@@ -16,13 +17,30 @@ public class MainViewModel : INotifyPropertyChanged
 
     public MainViewModel(
         ValidarCsvUseCase validarCsvUseCase,
+        TestarConexaoBancoDadosUseCase testarConexaoBancoDadosUseCase,
+        SalvarConexaoBancoDadosUseCase salvarConexaoBancoDadosUseCase,
+        ObterConexaoBancoDadosUseCase obterConexaoBancoDadosUseCase,
         IConfiguration configuration)
     {
         _validarCsvUseCase = validarCsvUseCase;
         _layoutTemplatesPath = Path.GetFullPath(configuration["AppSettings:LayoutTemplatesPath"] ?? "LayoutTemplates");
 
+        AbrirValidacaoCommand = new RelayCommand(AbrirValidacao);
+        AbrirConexoesBancoDadosCommand = new RelayCommand(AbrirConexoesBancoDados);
         SelecionarPastaCommand = new RelayCommand(SelecionarPasta);
         ValidarArquivosCommand = new RelayCommand(async () => await ValidarArquivosAsync(), PodeValidarArquivos);
+        DestinoConnection = new DatabaseConnectionViewModel(
+            "Destino",
+            "Banco de Dados de Destino",
+            testarConexaoBancoDadosUseCase,
+            salvarConexaoBancoDadosUseCase,
+            obterConexaoBancoDadosUseCase);
+        OrigemConnection = new DatabaseConnectionViewModel(
+            "Origem",
+            "Banco de Dados de Origem",
+            testarConexaoBancoDadosUseCase,
+            salvarConexaoBancoDadosUseCase,
+            obterConexaoBancoDadosUseCase);
 
         Arquivos.Add(new CsvValidationFileItemViewModel("Contrato.csv", "Contrato.xlsx"));
         Arquivos.Add(new CsvValidationFileItemViewModel("Prestacao.csv", "Prestacoes.xlsx"));
@@ -31,9 +49,10 @@ public class MainViewModel : INotifyPropertyChanged
 
         ProgressMaximum = Arquivos.Count;
         SelectedArquivo = Arquivos.FirstOrDefault();
+        AbrirValidacao();
     }
 
-    private string _mensagem = "Selecione a pasta onde estao os arquivos CSV para iniciar a validação sequencial.";
+    private string _mensagem = "Selecione a pasta onde estão os arquivos CSV para iniciar a validação sequencial.";
     public string Mensagem
     {
         get => _mensagem;
@@ -137,8 +156,46 @@ public class MainViewModel : INotifyPropertyChanged
 
     public RelayCommand SelecionarPastaCommand { get; }
     public RelayCommand ValidarArquivosCommand { get; }
+    public RelayCommand AbrirValidacaoCommand { get; }
+    public RelayCommand AbrirConexoesBancoDadosCommand { get; }
+    public DatabaseConnectionViewModel DestinoConnection { get; }
+    public DatabaseConnectionViewModel OrigemConnection { get; }
     public ObservableCollection<CsvValidationFileItemViewModel> Arquivos { get; } = new();
     public ObservableCollection<CsvValidationErrorItemViewModel> Erros { get; } = new();
+
+    private Visibility _validationViewVisibility;
+    public Visibility ValidationViewVisibility
+    {
+        get => _validationViewVisibility;
+        set
+        {
+            _validationViewVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private Visibility _databaseConnectionsViewVisibility;
+    public Visibility DatabaseConnectionsViewVisibility
+    {
+        get => _databaseConnectionsViewVisibility;
+        set
+        {
+            _databaseConnectionsViewVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private void AbrirValidacao()
+    {
+        ValidationViewVisibility = Visibility.Visible;
+        DatabaseConnectionsViewVisibility = Visibility.Collapsed;
+    }
+
+    private void AbrirConexoesBancoDados()
+    {
+        ValidationViewVisibility = Visibility.Collapsed;
+        DatabaseConnectionsViewVisibility = Visibility.Visible;
+    }
 
     private void SelecionarPasta()
     {

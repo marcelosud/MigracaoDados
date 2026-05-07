@@ -5,7 +5,9 @@ using MigracaoDados.Application.Interfaces;
 using MigracaoDados.Application.Services;
 using MigracaoDados.Application.UseCases;
 using MigracaoDados.Infrastructure.Csv;
+using MigracaoDados.Infrastructure.Database;
 using MigracaoDados.Infrastructure.Schemas;
+using MigracaoDados.Infrastructure.Security;
 using Serilog;
 using System.IO;
 using System.Windows;
@@ -35,9 +37,15 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<MainWindow>();
                 services.AddSingleton<ViewModels.MainViewModel>();
                 services.AddSingleton<ValidarCsvUseCase>();
+                services.AddSingleton<TestarConexaoBancoDadosUseCase>();
+                services.AddSingleton<SalvarConexaoBancoDadosUseCase>();
+                services.AddSingleton<ObterConexaoBancoDadosUseCase>();
                 services.AddSingleton<ICsvValidationService, CsvValidationService>();
                 services.AddSingleton<ICsvFileReader, CsvFileReader>();
                 services.AddSingleton<IImportSchemaReader, ExcelLayoutImportSchemaReader>();
+                services.AddSingleton<IDatabaseConnectionTester, DatabaseConnectionTester>();
+                services.AddSingleton<IDatabaseConnectionRepository, SqliteDatabaseConnectionRepository>();
+                services.AddSingleton<ISecretProtector, WindowsDpapiSecretProtector>();
             })
             .Build();
     }

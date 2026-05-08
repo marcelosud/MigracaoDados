@@ -22,6 +22,9 @@
                 <DataTrigger Binding="{Binding IsConnectingDestination}" Value="True">
                     <Setter Property="Cursor" Value="Wait" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsExecutingStoredProcedures}" Value="True">
+                    <Setter Property="Cursor" Value="Wait" />
+                </DataTrigger>
                 <DataTrigger Binding="{Binding DestinoConnection.IsBusy}" Value="True">
                     <Setter Property="Cursor" Value="Wait" />
                 </DataTrigger>
@@ -40,6 +43,17 @@
             <Setter Property="Padding" Value="4,2" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="SelectableStepLogTextBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#555555" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
         </Style>
 
         <Style x:Key="ValidationStatusIconBorderStyle" TargetType="Border">
@@ -359,10 +373,9 @@
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
                                 </StackPanel>
-                                <TextBlock Grid.Row="1"
-                                       Text="{Binding DatabaseConnectionStepDetail}"
-                                       Foreground="#555555"
-                                       TextWrapping="Wrap" />
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding DatabaseConnectionStepDetail}"
+                                         Style="{StaticResource SelectableStepLogTextBoxStyle}" />
                                 <Button Grid.Row="2"
                                     Width="130"
                                     Height="30"
@@ -398,16 +411,15 @@
                                            FontWeight="SemiBold"
                                            TextWrapping="Wrap" />
                                 </StackPanel>
-                                <TextBlock Grid.Row="1"
-                                       Text="{Binding StoredProceduresStepDetail}"
-                                       Foreground="#555555"
-                                       TextWrapping="Wrap" />
+                                <TextBox Grid.Row="1"
+                                         Text="{Binding StoredProceduresStepDetail}"
+                                         Style="{StaticResource SelectableStepLogTextBoxStyle}" />
                                 <Button Grid.Row="2"
-                                    Width="130"
+                                    Width="140"
                                     Height="30"
                                     Margin="0,12,0,0"
                                     HorizontalAlignment="Left"
-                                    Content="Preparar Etapa 3"
+                                    Content="Executar Etapa 3"
                                     Command="{Binding ExecutarStoredProceduresCommand}"
                                     IsEnabled="{Binding IsStoredProceduresStepEnabled}" />
                             </Grid>
@@ -685,7 +697,7 @@
                                     <TextBox Text="{Binding Server, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource InputTextBoxStyle}" />
 
-                                    <TextBlock Text="Banco de Dados / Service Name" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBlock Text="Banco de Dados / Service Name *" Style="{StaticResource FieldLabelStyle}" />
                                     <TextBox Text="{Binding Database, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource InputTextBoxStyle}" />
 

@@ -42,6 +42,11 @@ public sealed class DatabaseConnectionTester : IDatabaseConnectionTester
             throw new ArgumentException("Informe o servidor.");
         }
 
+        if (string.IsNullOrWhiteSpace(parameters.Database))
+        {
+            throw new ArgumentException("Informe o banco de dados.");
+        }
+
         if (string.IsNullOrWhiteSpace(parameters.User))
         {
             throw new ArgumentException("Informe o usuario.");

@@ -21,6 +21,11 @@ public sealed class SalvarConexaoBancoDadosUseCase
             return new DatabaseConnectionSaveResult(false, "Informe o servidor antes de salvar.");
         }
 
+        if (string.IsNullOrWhiteSpace(profile.Database))
+        {
+            return new DatabaseConnectionSaveResult(false, "Informe o banco de dados antes de salvar.");
+        }
+
         if (string.IsNullOrWhiteSpace(profile.User))
         {
             return new DatabaseConnectionSaveResult(false, "Informe o usuario antes de salvar.");

@@ -42,11 +42,13 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<SalvarConexaoBancoDadosUseCase>();
                 services.AddSingleton<ObterConexaoBancoDadosUseCase>();
                 services.AddSingleton<ExcluirConexaoBancoDadosUseCase>();
+                services.AddSingleton<ExecutarStoredProceduresMigracaoUseCase>();
                 services.AddSingleton<MigrationSessionState>();
                 services.AddSingleton<ICsvValidationService, CsvValidationService>();
                 services.AddSingleton<ICsvFileReader, CsvFileReader>();
                 services.AddSingleton<IImportSchemaReader, ExcelLayoutImportSchemaReader>();
                 services.AddSingleton<IDatabaseConnectionTester, DatabaseConnectionTester>();
+                services.AddSingleton<IDatabaseMigrationExecutor, SqlServerStoredProceduresMigrationExecutor>();
                 services.AddSingleton<IDatabaseConnectionRepository, SqliteDatabaseConnectionRepository>();
                 services.AddSingleton<ISecretProtector, WindowsDpapiSecretProtector>();
             })

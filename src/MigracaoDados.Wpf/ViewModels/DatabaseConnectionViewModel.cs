@@ -46,6 +46,7 @@ public sealed class DatabaseConnectionViewModel : INotifyPropertyChanged
 
     public bool HasRequiredParameters =>
         !string.IsNullOrWhiteSpace(Server)
+        && !string.IsNullOrWhiteSpace(Database)
         && !string.IsNullOrWhiteSpace(User)
         && !string.IsNullOrWhiteSpace(Password);
 
@@ -97,6 +98,7 @@ public sealed class DatabaseConnectionViewModel : INotifyPropertyChanged
 
             _database = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(HasRequiredParameters));
             InvalidateTestFeedback();
         }
     }

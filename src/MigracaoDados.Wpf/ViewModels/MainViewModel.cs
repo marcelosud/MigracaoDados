@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Win32;
 using MigracaoDados.Application.Csv;
+using MigracaoDados.Application.Database;
 using MigracaoDados.Application.Session;
 using MigracaoDados.Application.UseCases;
 using MigracaoDados.Domain.Importacao;
@@ -16,6 +17,7 @@ namespace MigracaoDados.Wpf.ViewModels;
 public class MainViewModel : INotifyPropertyChanged
 {
     private readonly ValidarCsvUseCase _validarCsvUseCase;
+    private readonly ExecutarStoredProceduresMigracaoUseCase _executarStoredProceduresMigracaoUseCase;
     private readonly MigrationSessionState _migrationSessionState;
     private readonly string _layoutTemplatesPath;
 
@@ -25,10 +27,12 @@ public class MainViewModel : INotifyPropertyChanged
         SalvarConexaoBancoDadosUseCase salvarConexaoBancoDadosUseCase,
         ObterConexaoBancoDadosUseCase obterConexaoBancoDadosUseCase,
         ExcluirConexaoBancoDadosUseCase excluirConexaoBancoDadosUseCase,
+        ExecutarStoredProceduresMigracaoUseCase executarStoredProceduresMigracaoUseCase,
         MigrationSessionState migrationSessionState,
         IConfiguration configuration)
     {
         _validarCsvUseCase = validarCsvUseCase;
+        _executarStoredProceduresMigracaoUseCase = executarStoredProceduresMigracaoUseCase;
         _migrationSessionState = migrationSessionState;
         _layoutTemplatesPath = Path.GetFullPath(configuration["AppSettings:LayoutTemplatesPath"] ?? "LayoutTemplates");
 
@@ -39,7 +43,7 @@ public class MainViewModel : INotifyPropertyChanged
         IniciarConexaoDestinoCommand = new RelayCommand(async () => await IniciarConexaoDestinoAsync(), PodeIniciarConexaoDestino);
         ConfirmarConexaoDestinoPopupCommand = new RelayCommand(async () => await ConfirmarConexaoDestinoPopupAsync(), PodeConfirmarConexaoDestinoPopup);
         CancelarConexaoDestinoPopupCommand = new RelayCommand(CancelarConexaoDestinoPopup);
-        ExecutarStoredProceduresCommand = new RelayCommand(PrepararStoredProcedures, PodeExecutarStoredProcedures);
+        ExecutarStoredProceduresCommand = new RelayCommand(async () => await ExecutarStoredProceduresAsync(), PodeExecutarStoredProcedures);
         DestinoConnection = new DatabaseConnectionViewModel(
             "Destino",
             "Banco de Dados de Destino",
@@ -249,7 +253,10 @@ public class MainViewModel : INotifyPropertyChanged
 
     public bool AreCsvFilesValid => Arquivos.Count > 0 && Arquivos.All(arquivo => arquivo.IsValid);
     public bool IsDatabaseConnectionStepEnabled => AreCsvFilesValid && !DestinationConnectionReady && !IsConnectingDestination;
-    public bool IsStoredProceduresStepEnabled => DestinationConnectionReady;
+    public bool IsStoredProceduresStepEnabled =>
+        DestinationConnectionReady
+        && !IsExecutingStoredProcedures
+        && StoredProceduresStepState != "Sucesso";
 
     public string DatabaseConnectionStepTitle =>
         string.IsNullOrWhiteSpace(DestinoConnection.Server)
@@ -396,6 +403,8 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _storedProceduresStepState = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsStoredProceduresStepEnabled));
+            ExecutarStoredProceduresCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -418,6 +427,19 @@ public class MainViewModel : INotifyPropertyChanged
         {
             _storedProceduresStepDetail = value;
             OnPropertyChanged();
+        }
+    }
+
+    private bool _isExecutingStoredProcedures;
+    public bool IsExecutingStoredProcedures
+    {
+        get => _isExecutingStoredProcedures;
+        set
+        {
+            _isExecutingStoredProcedures = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsStoredProceduresStepEnabled));
+            ExecutarStoredProceduresCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -559,9 +581,51 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private void PrepararStoredProcedures()
+    private async Task ExecutarStoredProceduresAsync()
     {
-        StoredProceduresStepDetail = "Banco de destino conectado. A execução das stored procedures será configurada na próxima etapa.";
+        if (!PodeExecutarStoredProcedures())
+        {
+            return;
+        }
+
+        IsExecutingStoredProcedures = true;
+        MarcarEtapaStoredProceduresProcessando("Executando stored procedures de migracao no banco de destino...");
+
+        try
+        {
+            var result = await _executarStoredProceduresMigracaoUseCase.ExecutarAsync(
+                CriarParametrosConexaoDestino(),
+                _migrationSessionState.Parameters);
+
+            if (result.Success)
+            {
+                MarcarEtapaStoredProceduresSucesso(result.Message);
+            }
+            else
+            {
+                MarcarEtapaStoredProceduresErro(result.Message);
+            }
+        }
+        catch (Exception exception)
+        {
+            MarcarEtapaStoredProceduresErro($"Falha ao executar a Etapa 3: {exception.Message}");
+        }
+        finally
+        {
+            IsExecutingStoredProcedures = false;
+        }
+    }
+
+    private DatabaseConnectionParameters CriarParametrosConexaoDestino()
+    {
+        return new DatabaseConnectionParameters(
+            DestinoConnection.SelectedDatabaseType == "Oracle"
+                ? DatabaseProviderType.Oracle
+                : DatabaseProviderType.SqlServer,
+            DestinoConnection.Server,
+            DestinoConnection.Database,
+            DestinoConnection.User,
+            DestinoConnection.Password);
     }
 
     private void SelecionarPasta()
@@ -927,6 +991,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     private void ResetarEtapas()
     {
+        IsExecutingStoredProcedures = false;
         DestinationConnectionReady = false;
         DestinationConnectionPopupVisibility = Visibility.Collapsed;
         _migrationSessionState.Clear();
@@ -1017,7 +1082,31 @@ public class MainViewModel : INotifyPropertyChanged
         DatabaseConnectionStepDetail = $"Conexão realizada com sucesso em {DestinoConnection.Server}.";
         StoredProceduresStepState = "Pendente";
         StoredProceduresStepIcon = "-";
-        StoredProceduresStepDetail = "Banco conectado. Próxima etapa: configurar a execução das stored procedures de migração.";
+        StoredProceduresStepDetail = "Banco conectado. Proxima etapa: executar as stored procedures de migracao.";
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaStoredProceduresProcessando(string detail)
+    {
+        StoredProceduresStepState = "Processando";
+        StoredProceduresStepIcon = "...";
+        StoredProceduresStepDetail = detail;
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaStoredProceduresSucesso(string detail)
+    {
+        StoredProceduresStepState = "Sucesso";
+        StoredProceduresStepIcon = "OK";
+        StoredProceduresStepDetail = detail;
+        AtualizarDisponibilidadeEtapas();
+    }
+
+    private void MarcarEtapaStoredProceduresErro(string detail)
+    {
+        StoredProceduresStepState = "Erro";
+        StoredProceduresStepIcon = "X";
+        StoredProceduresStepDetail = detail;
         AtualizarDisponibilidadeEtapas();
     }
 

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MigracaoDados.Application.Interfaces;
 using MigracaoDados.Application.Services;
+using MigracaoDados.Application.Session;
 using MigracaoDados.Application.UseCases;
 using MigracaoDados.Infrastructure.Csv;
 using MigracaoDados.Infrastructure.Database;
@@ -41,6 +42,7 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<SalvarConexaoBancoDadosUseCase>();
                 services.AddSingleton<ObterConexaoBancoDadosUseCase>();
                 services.AddSingleton<ExcluirConexaoBancoDadosUseCase>();
+                services.AddSingleton<MigrationSessionState>();
                 services.AddSingleton<ICsvValidationService, CsvValidationService>();
                 services.AddSingleton<ICsvFileReader, CsvFileReader>();
                 services.AddSingleton<IImportSchemaReader, ExcelLayoutImportSchemaReader>();

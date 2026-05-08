@@ -23,5 +23,8 @@ public enum ValidationErrorType
     InvalidType,
 
     [Description("Tamanho máximo excedido")]
-    MaxLengthExceeded
+    MaxLengthExceeded,
+
+    [Description("Valor divergente")]
+    InconsistentValue
 }

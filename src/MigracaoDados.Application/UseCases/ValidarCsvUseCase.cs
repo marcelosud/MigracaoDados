@@ -1,3 +1,4 @@
+using MigracaoDados.Application.Csv;
 using MigracaoDados.Application.Interfaces;
 using MigracaoDados.Domain.Importacao;
 
@@ -24,9 +25,21 @@ public sealed class ValidarCsvUseCase
         string schemaPath,
         CancellationToken cancellationToken = default)
     {
+        var result = await ExecutarComDadosAsync(csvPath, schemaPath, cancellationToken);
+
+        return result.ValidationResult;
+    }
+
+    public async Task<CsvValidationExecutionResult> ExecutarComDadosAsync(
+        string csvPath,
+        string schemaPath,
+        CancellationToken cancellationToken = default)
+    {
         var schema = await _schemaReader.ReadAsync(schemaPath, cancellationToken);
         var csvFile = await _csvFileReader.ReadAsync(csvPath, cancellationToken);
 
-        return _validationService.Validate(schema, csvFile);
+        return new CsvValidationExecutionResult(
+            _validationService.Validate(schema, csvFile),
+            csvFile);
     }
 }

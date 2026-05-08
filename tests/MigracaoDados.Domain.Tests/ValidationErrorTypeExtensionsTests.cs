@@ -12,6 +12,7 @@ public class ValidationErrorTypeExtensionsTests
     [InlineData(ValidationErrorType.RequiredValue, "Valor requerido")]
     [InlineData(ValidationErrorType.InvalidType, "Tipo inválido")]
     [InlineData(ValidationErrorType.MaxLengthExceeded, "Tamanho máximo excedido")]
+    [InlineData(ValidationErrorType.InconsistentValue, "Valor divergente")]
     public void GetDescription_Should_Return_Portuguese_Description(
         ValidationErrorType errorType,
         string expectedDescription)

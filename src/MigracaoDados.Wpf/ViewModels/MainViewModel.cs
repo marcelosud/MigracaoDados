@@ -1,9 +1,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Win32;
+using MigracaoDados.Application.Csv;
+using MigracaoDados.Application.Session;
 using MigracaoDados.Application.UseCases;
 using MigracaoDados.Domain.Importacao;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -13,6 +16,7 @@ namespace MigracaoDados.Wpf.ViewModels;
 public class MainViewModel : INotifyPropertyChanged
 {
     private readonly ValidarCsvUseCase _validarCsvUseCase;
+    private readonly MigrationSessionState _migrationSessionState;
     private readonly string _layoutTemplatesPath;
 
     public MainViewModel(
@@ -21,9 +25,11 @@ public class MainViewModel : INotifyPropertyChanged
         SalvarConexaoBancoDadosUseCase salvarConexaoBancoDadosUseCase,
         ObterConexaoBancoDadosUseCase obterConexaoBancoDadosUseCase,
         ExcluirConexaoBancoDadosUseCase excluirConexaoBancoDadosUseCase,
+        MigrationSessionState migrationSessionState,
         IConfiguration configuration)
     {
         _validarCsvUseCase = validarCsvUseCase;
+        _migrationSessionState = migrationSessionState;
         _layoutTemplatesPath = Path.GetFullPath(configuration["AppSettings:LayoutTemplatesPath"] ?? "LayoutTemplates");
 
         AbrirValidacaoCommand = new RelayCommand(AbrirValidacao);
@@ -283,6 +289,72 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private Visibility _validationParametersVisibility = Visibility.Collapsed;
+    public Visibility ValidationParametersVisibility
+    {
+        get => _validationParametersVisibility;
+        set
+        {
+            _validationParametersVisibility = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _currentMovementDateDisplay = "-";
+    public string CurrentMovementDateDisplay
+    {
+        get => _currentMovementDateDisplay;
+        set
+        {
+            _currentMovementDateDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _previousMovementDateDisplay = "-";
+    public string PreviousMovementDateDisplay
+    {
+        get => _previousMovementDateDisplay;
+        set
+        {
+            _previousMovementDateDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _nextMovementDateDisplay = "-";
+    public string NextMovementDateDisplay
+    {
+        get => _nextMovementDateDisplay;
+        set
+        {
+            _nextMovementDateDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _institutionNumberDisplay = "-";
+    public string InstitutionNumberDisplay
+    {
+        get => _institutionNumberDisplay;
+        set
+        {
+            _institutionNumberDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private string _csvPathDisplay = "-";
+    public string CsvPathDisplay
+    {
+        get => _csvPathDisplay;
+        set
+        {
+            _csvPathDisplay = value;
+            OnPropertyChanged();
+        }
+    }
+
     private string _databaseConnectionStepState = "Pendente";
     public string DatabaseConnectionStepState
     {
@@ -527,6 +599,8 @@ public class MainViewModel : INotifyPropertyChanged
 
         try
         {
+            var packageParameterValues = new List<CsvFileParameterValues>();
+
             for (var index = 0; index < Arquivos.Count; index++)
             {
                 var arquivo = Arquivos[index];
@@ -549,7 +623,8 @@ public class MainViewModel : INotifyPropertyChanged
                 arquivo.MarcarValidando();
                 Status = $"Validando {arquivo.CsvFileName}...";
 
-                var result = await _validarCsvUseCase.ExecutarAsync(csvPath, schemaPath);
+                var executionResult = await _validarCsvUseCase.ExecutarComDadosAsync(csvPath, schemaPath);
+                var result = executionResult.ValidationResult;
                 arquivo.TotalRows = result.TotalRows;
                 arquivo.Errors.Clear();
 
@@ -569,12 +644,27 @@ public class MainViewModel : INotifyPropertyChanged
                     return;
                 }
 
+                var parameterValues = ValidarParametrosTransversais(arquivo, executionResult.CsvFile, packageParameterValues);
+                AtualizarErrosSelecionados();
+
+                if (arquivo.Errors.Count > 0 || parameterValues is null)
+                {
+                    arquivo.MarcarErro($"{arquivo.Errors.Count} erro(s) encontrado(s).", result.TotalRows);
+                    ProgressText = $"{ProgressValue} de {ProgressMaximum} arquivo(s) validado(s).";
+                    Status = $"{arquivo.CsvFileName} inválido. Corrija o arquivo antes de validar os próximos.";
+                    MarcarEtapaValidacaoErro($"Validação interrompida em {arquivo.CsvFileName}: {arquivo.Errors.Count} erro(s) encontrado(s).");
+                    return;
+                }
+
+                packageParameterValues.Add(parameterValues);
+
                 arquivo.MarcarSucesso(result.TotalRows);
                 ProgressValue = index + 1;
                 ProgressText = $"{ProgressValue} de {ProgressMaximum} arquivo(s) validado(s).";
             }
 
             Status = "Todos os arquivos CSV foram validados com sucesso.";
+            AtualizarParametrosSessao(packageParameterValues[0]);
             MarcarEtapaValidacaoSucesso();
             MarcarEtapaConexaoPendente("Validação concluída. Inicie a conexão com o banco de destino.");
         }
@@ -627,10 +717,225 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private CsvFileParameterValues? ValidarParametrosTransversais(
+        CsvValidationFileItemViewModel arquivo,
+        CsvDataFile csvFile,
+        IReadOnlyList<CsvFileParameterValues> previousFiles)
+    {
+        const string movementDateColumn = "ENT_DT_MOVTO";
+        const string institutionColumn = "ENT_NR_INST";
+
+        DateOnly? fileMovementDate = null;
+        string? fileInstitutionNumber = null;
+        var referenceValues = previousFiles.FirstOrDefault();
+
+        if (csvFile.Rows.Count == 0)
+        {
+            arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                0,
+                string.Empty,
+                string.Empty,
+                "O arquivo CSV nao possui linhas para definir os parametros da migracao.",
+                ValidationErrorType.EmptyFile)));
+
+            return null;
+        }
+
+        foreach (var row in csvFile.Rows)
+        {
+            var movementDateValue = ReadColumnValue(row, movementDateColumn);
+            var institutionNumberValue = ReadColumnValue(row, institutionColumn);
+
+            if (string.IsNullOrWhiteSpace(movementDateValue))
+            {
+                arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                    row.RowNumber,
+                    movementDateColumn,
+                    string.Empty,
+                    $"A coluna '{movementDateColumn}' é obrigatória para definir a data de movimento.",
+                    ValidationErrorType.RequiredValue)));
+            }
+            else if (!TryParseMovementDate(movementDateValue, out var rowMovementDate))
+            {
+                arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                    row.RowNumber,
+                    movementDateColumn,
+                    movementDateValue,
+                    $"O valor '{movementDateValue}' não é uma data de movimento válida.",
+                    ValidationErrorType.InvalidType)));
+            }
+            else
+            {
+                fileMovementDate ??= rowMovementDate;
+
+                if (referenceValues is not null)
+                {
+                    if (referenceValues.MovementDate != rowMovementDate)
+                    {
+                        arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                            row.RowNumber,
+                            movementDateColumn,
+                            movementDateValue,
+                            $"A data de movimento '{movementDateColumn}' esta divergente da data '{movementDateColumn}' informada no arquivo {referenceValues.SourceCsvFileName}. Valor esperado '{FormatParameterDate(referenceValues.MovementDate)}'.",
+                            ValidationErrorType.InconsistentValue)));
+                    }
+                }
+                else if (fileMovementDate.Value != rowMovementDate)
+                {
+                    arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                        row.RowNumber,
+                        movementDateColumn,
+                        movementDateValue,
+                        $"A data de movimento '{movementDateColumn}' esta divergente da primeira data '{movementDateColumn}' informada no arquivo {arquivo.CsvFileName}. Valor esperado '{FormatParameterDate(fileMovementDate.Value)}'.",
+                        ValidationErrorType.InconsistentValue)));
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(institutionNumberValue))
+            {
+                arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                    row.RowNumber,
+                    institutionColumn,
+                    string.Empty,
+                    $"A coluna '{institutionColumn}' é obrigatória para definir a instituição.",
+                    ValidationErrorType.RequiredValue)));
+            }
+            else
+            {
+                fileInstitutionNumber ??= institutionNumberValue;
+
+                if (referenceValues is not null)
+                {
+                    if (!string.Equals(referenceValues.InstitutionNumber, institutionNumberValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                            row.RowNumber,
+                            institutionColumn,
+                            institutionNumberValue,
+                            $"A coluna '{institutionColumn}' esta divergente do valor '{institutionColumn}' informado no arquivo {referenceValues.SourceCsvFileName}. Valor esperado '{referenceValues.InstitutionNumber}'.",
+                            ValidationErrorType.InconsistentValue)));
+                    }
+                }
+                else if (!string.Equals(fileInstitutionNumber, institutionNumberValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    arquivo.Errors.Add(CsvValidationErrorItemViewModel.From(new CsvValidationError(
+                        row.RowNumber,
+                        institutionColumn,
+                        institutionNumberValue,
+                        $"A coluna '{institutionColumn}' esta divergente do primeiro valor '{institutionColumn}' informado no arquivo {arquivo.CsvFileName}. Valor esperado '{fileInstitutionNumber}'.",
+                        ValidationErrorType.InconsistentValue)));
+                }
+            }
+        }
+
+        if (arquivo.Errors.Count > 0 || fileMovementDate is null || string.IsNullOrWhiteSpace(fileInstitutionNumber))
+        {
+            return null;
+        }
+
+        return new CsvFileParameterValues(fileMovementDate.Value, fileInstitutionNumber, arquivo.CsvFileName);
+    }
+
+    private void AtualizarParametrosSessao(CsvFileParameterValues values)
+    {
+        var previousMovementDate = GetPreviousBusinessDay(values.MovementDate);
+        var nextMovementDate = GetNextBusinessDay(values.MovementDate);
+
+        var parameters = new MigrationSessionParameters(
+            FormatParameterDate(values.MovementDate),
+            FormatParameterDate(previousMovementDate),
+            FormatParameterDate(nextMovementDate),
+            values.InstitutionNumber,
+            CsvFolderPath);
+
+        _migrationSessionState.SetParameters(parameters);
+
+        CurrentMovementDateDisplay = FormatDisplayDate(values.MovementDate);
+        PreviousMovementDateDisplay = FormatDisplayDate(previousMovementDate);
+        NextMovementDateDisplay = FormatDisplayDate(nextMovementDate);
+        InstitutionNumberDisplay = values.InstitutionNumber;
+        CsvPathDisplay = CsvFolderPath;
+        ValidationParametersVisibility = Visibility.Visible;
+    }
+
+    private static string ReadColumnValue(CsvDataRow row, string columnName)
+    {
+        return row.Values.TryGetValue(columnName, out var value)
+            ? value.Trim()
+            : string.Empty;
+    }
+
+    private static bool TryParseMovementDate(string value, out DateOnly movementDate)
+    {
+        var trimmedValue = value.Trim();
+        string[] formats = ["yyyyMMdd", "yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy"];
+
+        if (DateOnly.TryParseExact(
+            trimmedValue,
+            formats,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out movementDate))
+        {
+            return true;
+        }
+
+        if (DateTime.TryParse(trimmedValue, new CultureInfo("pt-BR"), DateTimeStyles.None, out var ptBrDate)
+            || DateTime.TryParse(trimmedValue, CultureInfo.InvariantCulture, DateTimeStyles.None, out ptBrDate))
+        {
+            movementDate = DateOnly.FromDateTime(ptBrDate);
+            return true;
+        }
+
+        movementDate = default;
+        return false;
+    }
+
+    private static DateOnly GetPreviousBusinessDay(DateOnly date)
+    {
+        var previousDate = date.AddDays(-1);
+
+        while (previousDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            previousDate = previousDate.AddDays(-1);
+        }
+
+        return previousDate;
+    }
+
+    private static DateOnly GetNextBusinessDay(DateOnly date)
+    {
+        var nextDate = date.AddDays(1);
+
+        while (nextDate.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            nextDate = nextDate.AddDays(1);
+        }
+
+        return nextDate;
+    }
+
+    private static string FormatParameterDate(DateOnly date)
+    {
+        return date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatDisplayDate(DateOnly date)
+    {
+        return date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    }
+
     private void ResetarEtapas()
     {
         DestinationConnectionReady = false;
         DestinationConnectionPopupVisibility = Visibility.Collapsed;
+        _migrationSessionState.Clear();
+        ValidationParametersVisibility = Visibility.Collapsed;
+        CurrentMovementDateDisplay = "-";
+        PreviousMovementDateDisplay = "-";
+        NextMovementDateDisplay = "-";
+        InstitutionNumberDisplay = "-";
+        CsvPathDisplay = "-";
 
         CsvValidationStepState = "Pendente";
         CsvValidationStepIcon = "-";
@@ -847,6 +1152,11 @@ public sealed class CsvValidationFileItemViewModel : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
+
+public sealed record CsvFileParameterValues(
+    DateOnly MovementDate,
+    string InstitutionNumber,
+    string SourceCsvFileName);
 
 public sealed class CsvValidationErrorItemViewModel
 {

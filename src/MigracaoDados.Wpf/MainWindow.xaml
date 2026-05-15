@@ -311,13 +311,14 @@
                                     <TextBlock Grid.Row="0"
                                            Text="Data atual de movimento:"
                                            FontSize="12"
-                                           FontWeight="SemiBold"
+                                           FontWeight="Bold"
                                            TextWrapping="Wrap" />
                                     <TextBlock Grid.Row="0"
                                            Grid.Column="1"
                                            Text="{Binding CurrentMovementDateDisplay}"
                                            Margin="8,0,0,0"
                                            FontSize="12"
+                                           FontWeight="Bold"
                                            Foreground="#555555" />
 
                                     <TextBlock Grid.Row="2"
@@ -337,13 +338,14 @@
                                            Text="Nr. Institui&#231;&#227;o:"
                                            Margin="0,5,0,0"
                                            FontSize="12"
-                                           FontWeight="SemiBold"
+                                           FontWeight="Bold"
                                            TextWrapping="Wrap" />
                                     <TextBlock Grid.Row="3"
                                            Grid.Column="1"
                                            Text="{Binding InstitutionNumberDisplay}"
                                            Margin="8,5,0,0"
                                            FontSize="12"
+                                           FontWeight="Bold"
                                            Foreground="#555555" />
                                 </Grid>
                             </StackPanel>
